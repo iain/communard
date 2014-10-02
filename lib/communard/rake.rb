@@ -8,43 +8,47 @@ module Communard
     def self.add_tasks(ns = :db, &block)
 
       namespace ns do
+        task :_load_communard do
+          @_communard_context = Communard.context(&block)
+        end
+
         desc "Creates the database, migrate the schema, and loads seed data"
         task :setup => [:create, :migrate, :seed, "db:test:prepare"]
 
         desc "Creates the database"
-        task :create do
-          Communard.context(&block).create_database
+        task :create => :_load_communard do
+          @_communard_context.create_database
         end
 
         desc "Drops the database"
-        task :drop do
-          Communard.context(&block).drop_database
+        task :drop => :_load_communard do
+          @_communard_context.drop_database
         end
 
         desc "Drops and creates the database"
         task :reset => [:drop, :setup]
 
         desc "Migrate the database"
-        task :migrate do
+        task :migrate => :_load_communard do
           target = ENV["VERSION"] || ENV["TARGET"]
-          Communard.context(&block).migrate(target: target)
+          @_communard_context.migrate(target: target)
         end
 
         desc "Load the seed data from db/seeds.rb"
-        task :seed do
-          Communard.context(&block).seed
+        task :seed => :_load_communard do
+          @_communard_context.seed
         end
 
         desc "Rolls the schema back to the previous version"
-        task :rollback do
+        task :rollback => :_load_communard do
           step = Integer(ENV["STEP"] || 1)
-          Communard.context(&block).rollback(step: step)
+          @_communard_context.rollback(step: step)
         end
 
         namespace :test do
           desc "Cleans the test database"
-          task :prepare do
-            context = Communard.context(&block)
+          task :prepare => :_load_communard do
+            context = @_communard_context
             context.drop_database(env: "test")
             context.create_database(env: "test")
             context.migrate(env: "test")
@@ -54,28 +58,28 @@ module Communard
         namespace :migrate do
 
           desc "Redo the last migration"
-          task :redo do
-            context = Communard.context(&block)
+          task :redo => :_load_communard do
+            context = @_communard_context
             context.rollback
             context.migrate
           end
 
           desc "Display status of migrations"
-          task :status do
-            Communard.context(&block).status
+          task :status, :_load_communard do
+            @_communard_context.status
           end
         end
 
         namespace :schema do
 
           desc "Load the schema from db/schema.rb"
-          task :load do
-            Communard.context(&block).load_schema
+          task :load => :_load_communard do
+            @_communard_context.load_schema
           end
 
           desc "Dumps the schema to db/schema.rb"
-          task :dump do
-            Communard.context(&block).dump_schema
+          task :dump => :_load_communard do
+            @_communard_context.dump_schema
           end
 
         end

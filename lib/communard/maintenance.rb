@@ -9,20 +9,20 @@ module Communard
       @root       = root
     end
 
-    def migrate(target: nil)
+    def migrate(target: nil, dump_same_db: false)
       target = Integer(target) if target
       ::Sequel::Migrator.run(connection, migrations, target: target, allow_missing_migration_files: true)
-      dump_schema
+      dump_schema(dump_same_db: dump_same_db)
     end
 
     def seed
       load seeds_file if seeds_file.exist?
     end
 
-    def rollback(step: 1)
+    def rollback(step: 1, dump_same_db: false)
       target = applied_migrations[-step - 1]
       if target
-        migrate(target: target.split(/_/, 2).first)
+        migrate(target: target.split(/_/, 2).first, dump_same_db: dump_same_db)
       else
         fail ArgumentError, "Cannot roll back that far"
       end
@@ -33,9 +33,9 @@ module Communard
       migration.apply(connection, :up)
     end
 
-    def dump_schema
+    def dump_schema(dump_same_db: false)
       connection.extension :schema_dumper
-      schema = connection.dump_schema_migration(same_db: false)
+      schema = connection.dump_schema_migration(same_db: dump_same_db)
       schema_file.open("w") { |f| f << schema.gsub(/\s+$/m, "") }
     end
 

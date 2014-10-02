@@ -30,7 +30,13 @@ module Communard
     end
 
     def create_database(env: environment)
-      run_without_database("CREATE DATABASE IF NOT EXISTS %{database_name}", env: env)
+      run_without_database("CREATE DATABASE %{database_name}", env: env)
+    rescue Sequel::DatabaseError => error
+      if /database (.*) already exists/ === error.message
+        logger.info "Database #{$1} already exists, which is fine."
+      else
+        raise
+      end
     end
 
     def drop_database(env: environment)
@@ -39,7 +45,7 @@ module Communard
     end
 
     def migrate(target: nil, env: environment)
-      maintenance(env: env).migrate(target: target)
+      maintenance(env: env).migrate(target: target, dump_same_db: configuration.dump_same_db)
     end
 
     def seed(env: environment)
@@ -47,7 +53,7 @@ module Communard
     end
 
     def rollback(step: 1, env: environment)
-      maintenance(env: env).rollback(step: step)
+      maintenance(env: env).rollback(step: step, dump_same_db: configuration.dump_same_db)
     end
 
     def load_schema(env: environment)
@@ -55,7 +61,7 @@ module Communard
     end
 
     def dump_schema(env: environment)
-      maintenance(env: env).dump_schema
+      maintenance(env: env).dump_schema(dump_same_db: configuration.dump_same_db)
     end
 
     def status(env: environment)
@@ -65,6 +71,10 @@ module Communard
     def run_without_database(cmd, env: environment)
       opts = options(env: env).dup
       database_name = opts.delete("database")
+      if opts.fetch("adapter") == "postgres"
+        opts["database"]           = "postgres"
+        opts["schema_search_path"] = "public"
+      end
       connection = connect(opts)
       connection.run(cmd % { database_name: database_name })
     end
