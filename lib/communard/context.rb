@@ -12,6 +12,8 @@ module Communard
     def connect(opts = options)
       connection = ::Sequel.connect(opts)
       connection.loggers = [logger]
+      connection.sql_log_level = :debug
+      connection.log_warn_duration = 1
       connection
     end
 
