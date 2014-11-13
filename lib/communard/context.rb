@@ -10,11 +10,11 @@ module Communard
     end
 
     def connect(opts = options)
-      connection = ::Sequel.connect(opts)
-      connection.loggers = [logger]
-      connection.sql_log_level = :debug
-      connection.log_warn_duration = 1
-      connection
+      ::Sequel.connect(opts).tap do |connection|
+        connection.loggers = loggers
+        connection.sql_log_level = configuration.sql_log_level
+        connection.log_warn_duration = configuration.log_warn_duration
+      end
     end
 
     def generate_migration(name: nil)
@@ -35,7 +35,7 @@ module Communard
       run_without_database("CREATE DATABASE %{database_name}", env: env)
     rescue Sequel::DatabaseError => error
       if /database (.*) already exists/ === error.message
-        logger.info "Database #{$1} already exists, which is fine."
+        loggers.each { |logger| logger.info "Database #{$1} already exists, which is fine." }
       else
         raise
       end
@@ -99,8 +99,8 @@ module Communard
       configuration.root
     end
 
-    def logger
-      configuration.logger
+    def loggers
+      configuration.loggers
     end
 
   end
