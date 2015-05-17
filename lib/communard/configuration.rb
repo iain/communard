@@ -1,6 +1,3 @@
-require "logger"
-require "pathname"
-
 module Communard
   class Configuration
 

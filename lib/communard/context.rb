@@ -1,5 +1,3 @@
-require "sequel"
-
 module Communard
   class Context
 
@@ -32,7 +30,9 @@ module Communard
     end
 
     def create_database(env: environment)
-      run_without_database("CREATE DATABASE %{database_name}", env: env)
+      unless adapter(env: env) == "sqlite"
+        run_without_database("CREATE DATABASE %{database_name}", env: env)
+      end
     rescue Sequel::DatabaseError => error
       if /database (.*) already exists/ === error.message
         loggers.each { |logger| logger.info "Database #{$1} already exists, which is fine." }
@@ -43,7 +43,14 @@ module Communard
 
     def drop_database(env: environment)
       fail ArgumentError, "Don't drop the production database, you monkey!" if env.to_s == "production"
-      run_without_database("DROP DATABASE IF EXISTS %{database_name}", env: env)
+      if adapter(env: env) == "sqlite"
+        file = options(env: env).fetch("database")
+        if File.exist?(file)
+          File.rm(file)
+        end
+      else
+        run_without_database("DROP DATABASE IF EXISTS %{database_name}", env: env)
+      end
     end
 
     def migrate(target: nil, env: environment)
@@ -87,7 +94,7 @@ module Communard
 
     private
 
-    def maintenance(env: env)
+    def maintenance(env: environment)
       Maintenance.new(connection: connect(options(env: env)), root: root)
     end
 
@@ -101,6 +108,10 @@ module Communard
 
     def loggers
       configuration.loggers
+    end
+
+    def adapter(env: environment)
+      options(env: env).fetch("adapter").to_s
     end
 
   end

@@ -1,3 +1,7 @@
+require "sequel"
+require "logger"
+require "pathname"
+
 require "communard/version"
 require "communard/maintenance"
 require "communard/configuration"
