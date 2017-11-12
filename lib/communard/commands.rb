@@ -50,11 +50,16 @@ module Communard
     end
 
     def rollback(step: 1)
-      target = applied_migrations[-step - 1]
-      if target
-        migrate(target: target.split(/_/, 2).first)
+      available = applied_migrations
+      if available.size == 1
+        migrate(target: 0)
       else
-        fail ArgumentError, "Cannot roll back to #{step}"
+        target = available[-step - 1]
+        if target
+          migrate(target: target.split(/_/, 2).first)
+        else
+          fail ArgumentError, "Cannot roll back to #{step}"
+        end
       end
     end
 
@@ -75,7 +80,7 @@ module Communard
       results = Hash.new { |h, k| h[k] = Status.new(k, false, false) }
       available = Pathname.glob(migrations_dir.join("*.rb")).map(&:basename).map(&:to_s)
       available.each { |migration| results[migration].available = true }
-      applied_migrations(available).each { |migration| results[migration].applied = true }
+      applied_migrations.each { |migration| results[migration].applied = true }
 
       $stdout.puts
       $stdout.puts "database: #{connection.opts.fetch(:database)}"
@@ -101,12 +106,13 @@ module Communard
 
     private
 
-    def applied_migrations(available)
+    def applied_migrations
+      available = Pathname.glob(migrations_dir.join("*.rb")).map(&:basename).map(&:to_s)
       m = migrator(allow_missing_migration_files: true)
       if m.is_a?(Sequel::IntegerMigrator)
         available.select { |f| f.split("_", 2).first.to_i <= m.current }
       else
-        instance.applied_migrations
+        m.applied_migrations
       end
     end
 

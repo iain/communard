@@ -6,6 +6,10 @@ RSpec.describe "Integration", type: :aruba do
     run_tests("sqlite://db/test.sqlite3")
   end
 
+  example "SQLite with timestamps" do
+    run_tests("sqlite://db/test.sqlite3", timestamps: true)
+  end
+
   example "PostgreSQL" do
     run_tests("postgresql://localhost:5432/communard_test")
   end
@@ -14,7 +18,7 @@ RSpec.describe "Integration", type: :aruba do
     run_tests("mysql2://root@localhost:3306/communard_test")
   end
 
-  def run_tests(database_config)
+  def run_tests(database_config, options = {})
     write_file "Rakefile", <<-FILE.gsub(/^\s{6}/, "")
       $LOAD_PATH.unshift(File.expand_path("../../../lib", __FILE__))
       require "communard/rake"
@@ -23,7 +27,11 @@ RSpec.describe "Integration", type: :aruba do
       end
     FILE
 
-    run_simple "bundle exec communard migration create_posts"
+    if options[:timestamps]
+      run_simple "bundle exec communard migration create_posts --timestamps"
+    else
+      run_simple "bundle exec communard migration create_posts"
+    end
 
     glob = Dir[expand_path("db/migrate/*_create_posts.rb")]
     file = glob.first
@@ -46,6 +54,8 @@ RSpec.describe "Integration", type: :aruba do
     run_simple "bundle exec rake db:create"
 
     run_simple "bundle exec rake db:migrate"
+
+    run_simple "bundle exec rake db:migrate:redo"
   end
 
 end
