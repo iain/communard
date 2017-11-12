@@ -1,24 +1,17 @@
-require "sequel"
-require "logger"
-require "pathname"
+require "sequel/core"
 
 require "communard/version"
-require "communard/maintenance"
 require "communard/configuration"
-require "communard/context"
+require "communard/commands"
 
 module Communard
 
-  def self.connect(&block)
-    context(&block).connect
+  def self.commands(*args, &block)
+    Commands.new(configuration(*args, &block))
   end
 
-  def self.context(&block)
-    Context.new(configuration(&block))
-  end
-
-  def self.configuration(&block)
-    Configuration.new(&block)
+  def self.configuration(*args, &block)
+    Configuration.new(*args, &block)
   end
 
 end

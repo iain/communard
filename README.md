@@ -2,9 +2,6 @@
 
 Communard adds some conventions from [ActiveRecord][ar] to [Sequel][sq].
 
-This means you can use `config/database.yml` and `db/migrate` again, so you
-don't have to change deployment scripts that are made for ActiveRecord.
-
 Sequel doesn't provide the exact same functionality as ActiveRecord. Communard
 doesn't try to make Sequel quack like ActiveRecord, it just tries to help with
 some (not all) setup.
@@ -31,25 +28,15 @@ $ gem install communard
 
 ## Usage
 
-### Connecting to the database
-
-To get a database connection:
-
-``` ruby
-DB = Communard.connect
-```
-
-The `DB` object will be familiar to you if you've ever read the Sequel documentation.
-
-Note: Communard doesn't remember your connection.
-
 ### Rake integration
 
 To add most Rake tasks, add this to your `Rakefile` or to `lib/tasks/communard.rake`:
 
 ``` ruby
 require "communard/rake"
-Communard::Rake.add_tasks
+namespace :db do
+  Communard::Rake.add_tasks
+end
 ```
 
 This will add the most used rake tasks, like `db:create`, `db:migrate`, and `db:setup`.
@@ -60,34 +47,68 @@ To see them all:
 $ rake -T db
 ```
 
+`Communard::Rake.add_tasks` accepts the same configuration options as
+`Sequel.connect`. It doesn't immediately make a connection, only when needed.
+
+The default connection string is `ENV["DATABASE_URL"]`, so if you use that,
+there is no need to configure anything.
+
+Other configuration options, can be set via a block:
+
+``` ruby
+namespace :db do
+  Communard::Rake.add_tasks do |config|
+
+    # Change where the application is located, defaults to Dir.pwd
+    config.root_path = Dir.pwd
+
+    # Automatically generate schema (default: false)
+    config.dump_after_migrating = false
+
+    # Dump types in native format (default) or Ruby (more portable)
+    config.same_db = true
+
+    # Add a logger
+    config.logger = Logger.new("log/migrations.log")
+
+  end
+end
+```
+
+Example with using `config/database.yml`:
+
+``` ruby
+namespace :db do
+  environment = ENV["RAILS_ENV"] || "development"
+  all_config = YAML.load_file("config/database.yml")
+  Communard::Rake.add_tasks(config.fetch(environment))
+end
+```
+
+Note about test environment: Communard doesn't try to create a test database
+like ActiveRecord does. The only rake task that attempts to do that is
+`rake db:test:prepare`. It respawns rake with different environment variables
+set. Your mileage may vary.
+
 ### Migrations
 
 To generate a migration:
 
 ```
-$ bundle exec communard --generate-migration create_posts
+$ communard migration create_posts
 ```
 
 Communard doesn't support more arguments, like the Rails generator does. You'll
 have to edit the generated migration file yourself.
 
-### Configuration
-
-There are a couple of configuration options available. They can be set by giving
-a block to `connect` or `add_tasks`. Under normal circumstances you don't need
-to set them.
-
-``` ruby
-DB = Communard.connect { |config|
-  config.root        = Rails.root
-  config.logger      = Rails.logger
-  config.environment = Rails.env.to_s
-}
-```
+Communard supports both timestamps and integer versions. It automatically
+detects which type you have. If you have no migrations yet and want to use
+timestamps, add `--timestamps`. Read more about how to choose in the
+[Sequel docs][tm].
 
 ## Contributing
 
-1. Fork it ( https://github.com/yourkarma/communard/fork )
+1. Fork it ( https://github.com/iain/communard/fork )
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
@@ -95,3 +116,4 @@ DB = Communard.connect { |config|
 
 [ar]: http://rubyonrails.org
 [sq]: http://sequel.jeremyevans.net
+[tm]: http://sequel.jeremyevans.net/rdoc/files/doc/migration_rdoc.html#label-How+to+choose

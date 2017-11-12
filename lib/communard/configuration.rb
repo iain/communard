@@ -1,51 +1,96 @@
+require "pathname"
+require "logger"
+require "uri"
+
 module Communard
   class Configuration
 
-    attr_accessor :environment, :root, :dump_same_db, :loggers, :sql_log_level, :log_warn_duration
+    attr_reader :options
 
-    def initialize
-      self.environment       = ENV["RACK_ENV"] || ENV["RUBY_ENV"] || ENV["RACK_ENV"] || "development"
-      self.root              = Pathname(Dir.pwd)
-      self.logger            = stdout_logger
-      self.log_level         = :info
-      self.dump_same_db      = false
-      self.sql_log_level     = :debug
-      self.log_warn_duration = 0.5
+    def initialize(conn_string = ENV["DATABASE_URL"], opts = Sequel::OPTS)
+      @conn_string = conn_string
+      @opts = opts
+
+      case conn_string
+      when String
+        uri = URI.parse(conn_string)
+        @options = {
+          "adapter"  => uri.scheme,
+          "user"     => uri.user,
+          "password" => uri.password,
+          "port"     => uri.port,
+          "host"     => uri.hostname,
+          "database" => (m = %r{/(.*)}.match(uri.path)) && (m[1]),
+        }
+      when Hash
+        @options = conn_string.map { |k, v| [ k.to_s, v ] }.to_h
+      else
+        raise ArgumentError, "Sequel::Database.connect takes either a Hash or a String, given: #{conn_string.inspect}"
+      end
+
+      self.root_path = Dir.pwd
+      self.logger = nil
+      self.dump_after_migrating = true
+      self.same_db = true
+
       yield self if block_given?
     end
 
-    def dump_same_db!
-      self.dump_same_db = true
+    attr_accessor :logger
+
+    attr_accessor :same_db
+
+    attr_accessor :dump_after_migrating
+
+    attr_reader :root_path
+
+    def root_path=(path)
+      @root_path = Pathname(path)
     end
 
-    def logger=(logger)
-      self.loggers = [logger]
+    def connection
+      Sequel.connect(@conn_string, @opts).tap { |c|
+        c.loggers = [logger, default_logger].compact
+        c.sql_log_level = :debug
+      }
     end
 
-    def loggers
-      Array(@loggers).compact
+    def silent_connection
+      Sequel.connect(@conn_string, @opts).tap { |c|
+        c.loggers = [logger].compact
+      }
     end
 
-    def log_level=(level)
-      real_level = ::Logger.const_get(level.to_s.upcase)
-      loggers.each do |logger|
-        logger.level = real_level
-      end
-    end
-
-    def stdout_logger(out = $stdout)
+    def default_logger(out = $stdout)
       ::Logger.new(out).tap { |l|
         alternate = 0
         l.formatter = Proc.new { |sev, _, _, msg|
           alternate = ((alternate + 1) % 2)
-          color = case sev
-          when "INFO" then 35 + alternate
-          when "DEBUG" then 90
-          else 31
+          msg = if sev == "DEBUG"
+                  "       #{msg}"
+                else
+                  "[#{sev}] #{msg}"
+                end
+          if out.tty?
+            color = case sev
+                    when "INFO" then 35 + alternate
+                    when "DEBUG" then 30
+                    else 31
+                    end
+            "\e[#{color}m#{msg}\e[0m\n"
+          else
+            "#{msg}\n"
           end
-          "\e[#{color}m[#{sev}]\e[0m #{msg}\n"
         }
       }
+    end
+
+    def adapter
+      options.fetch("adapter")
+    end
+
+    def database_name
+      options.fetch("database")
     end
 
   end

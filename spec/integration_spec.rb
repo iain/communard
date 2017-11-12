@@ -3,57 +3,34 @@ require "yaml"
 RSpec.describe "Integration", type: :aruba do
 
   example "SQLite" do
-    run_tests(
-      "adapter"  => "sqlite",
-      "database" => "db/test.sqlite3",
-      "pool"     => 5,
-      "timeout"  => 5000,
-    )
+    run_tests("sqlite://db/test.sqlite3")
   end
 
   example "PostgreSQL" do
-    run_tests(
-      "adapter"  => "postgres",
-      "database" => "communard_test",
-      "pool"     => 5,
-      "timeout"  => 5000,
-    )
+    run_tests("postgresql://localhost:5432/communard_test")
   end
 
   example "MySQL" do
-    run_tests(
-      "adapter"  => "mysql2",
-      "database" => "communard_test",
-      "username" => "root",
-      "pool"     => 5,
-      "timeout"  => 5000,
-    )
+    run_tests("mysql2://root@localhost:3306/communard_test")
   end
 
-
   def run_tests(database_config)
-
-    write_file "config/database.yml", { "development" => database_config }.to_yaml
-
     write_file "Rakefile", <<-FILE.gsub(/^\s{6}/, "")
       $LOAD_PATH.unshift(File.expand_path("../../../lib", __FILE__))
-      require "yaml"
       require "communard/rake"
-      Communard::Rake.add_tasks
-    FILE
-
-    run_simple "bundle exec communard --generate-migration create_posts"
-
-    file = Dir[absolute_path("db/migrate/*_create_posts.rb")].first
-
-    expect(File.read(file)).to eq <<-FILE.gsub(/^\s{6}/, "").chomp
-      Sequel.migration do
-        change do
-        end
+      namespace :db do
+        Communard::Rake.add_tasks("#{database_config}")
       end
     FILE
 
-    write_file file, <<-FILE.gsub(/^\s{6}/, "")
+    run_simple "bundle exec communard migration create_posts"
+
+    glob = Dir[expand_path("db/migrate/*_create_posts.rb")]
+    file = glob.first
+
+    expect(File.read(file)).to eq "Sequel.migration do\n\n  change do\n  end\n\nend\n"
+
+    write_file "db/migrate/#{File.basename(file)}", <<-FILE.gsub(/^\s{6}/, "")
       Sequel.migration do
         change do
           create_table :posts do
@@ -64,31 +41,11 @@ RSpec.describe "Integration", type: :aruba do
       end
     FILE
 
-    run_simple "rake db:drop"
+    run_simple "bundle exec rake db:drop"
 
-    run_simple "rake db:create"
+    run_simple "bundle exec rake db:create"
 
-    run_simple "rake db:migrate"
-
-    write_file "app.rb", <<-FILE.gsub(/^\s{6}/, "")
-      $LOAD_PATH.unshift(File.expand_path("../../../lib", __FILE__))
-      require "yaml"
-      require "communard"
-
-      db = Communard.connect
-      posts = db[:posts]
-
-      4.times do
-        posts.insert(name: "hello world")
-      end
-
-      puts "Post count: '\#{posts.count}'"
-    FILE
-
-    run_simple "ruby app.rb"
-
-    assert_partial_output("Post count: '4'", all_stdout)
+    run_simple "bundle exec rake db:migrate"
   end
-
 
 end

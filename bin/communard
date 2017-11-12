@@ -1,26 +1,54 @@
 #!/usr/bin/env ruby
 
-require "communard"
-require "optparse"
+command = ARGV.shift
 
-parser = OptionParser.new do |opts|
+case command
 
-  opts.on "-m", "--generate-migration NAME", "Generates a migration" do |name|
-    Communard.context.generate_migration(name: name)
-    exit
+when nil, "-h", "--help", "help"
+  puts "Usage: communard migration NAME"
+  exit
+
+when "-v", "--version"
+  require "communard"
+  puts Communard::VERSION
+  exit
+
+when "migration", "-m", "--generate-migration", "m"
+  migration_name = ARGV.shift
+
+  require "optparse"
+  require "pathname"
+  require "fileutils"
+
+  migrations_dir = Pathname(Dir.pwd).join("db/migrate")
+  FileUtils.mkdir_p(migrations_dir)
+
+  migration_files = Pathname.glob(migrations_dir.join("*.rb")).map { |f| f.basename.to_s }
+
+  if (conflict = migration_files.find { |f| f.match?(/\A\d+_#{migration_name}.rb\z/) })
+    abort "Migration with same name already exists: #{conflict}"
   end
 
-  opts.on_tail "-v", "--version" do
-    puts "Communard version #{Communard::VERSION}"
-    exit
+  options = {}
+
+  OptionParser.new do |opts|
+    opts.on "--[no-]timestamps", "Use timestamps for versions" do |bool|
+      options[:use_timestamps] = bool
+    end
+  end.parse!
+
+  versions = migration_files.map { |file| file.to_s.split("_", 2).first.to_i }
+
+  if !options.has_key?(:use_timestamps)
+    options[:use_timestamps] = versions.any? { |v| v > 20000101 }
   end
 
-  opts.on_tail "-h", "--help" do
-    puts parser
-    exit
-  end
+  version = options[:use_timestamps] ? Time.now.strftime("%Y%m%d%H%M%S") : "%03d" % (versions.max.to_i + 1)
 
+  filename = migrations_dir.join("#{version}_#{migration_name}.rb")
+
+  File.open(filename, "w") { |f| f.puts "Sequel.migration do\n\n  change do\n  end\n\nend" }
+  puts "Migration generated: #{filename.relative_path_from(Pathname(Dir.pwd))}"
+else
+  abort "Unknown command: #{command}"
 end
-parser.parse!
-
-puts parser

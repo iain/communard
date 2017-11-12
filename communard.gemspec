@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["iain@iain.nl"]
   spec.summary       = %q{Adds some conventions from ActiveRecord to Sequel.}
   spec.description   = %q{Adds some conventions from ActiveRecord to Sequel.}
-  spec.homepage      = "https://github.com/yourkarma/communard"
+  spec.homepage      = "https://github.com/iain/communard"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0")
@@ -18,7 +18,7 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "sequel", "~> 4.13"
+  spec.add_dependency "sequel", "~> 5.2"
 
   spec.add_development_dependency "bundler", "~> 1.6"
   spec.add_development_dependency "rake"
