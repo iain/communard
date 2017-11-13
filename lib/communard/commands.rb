@@ -49,6 +49,10 @@ module Communard
       load seeds_file if seeds_file.exist?
     end
 
+    def check_current
+      Sequel::Migrator.check_current(connection, migrations_dir)
+    end
+
     def rollback(step: 1)
       available = applied_migrations
       if available.size == 1

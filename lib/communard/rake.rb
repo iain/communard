@@ -43,6 +43,11 @@ module Communard
         @_communard_commands.rollback(step: step)
       end
 
+      desc "Checks if the database is fully migrated"
+      task check_current: :_load_communard do
+        @_communard_commands.check_current
+      end
+
       namespace :test do
         desc "Cleans the test database"
         task prepare: :_load_communard do
