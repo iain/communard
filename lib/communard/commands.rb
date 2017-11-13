@@ -108,6 +108,18 @@ module Communard
       conn.run(query % { database_name: database_name })
     end
 
+    def schema_file
+      db_path.join("schema.rb")
+    end
+
+    def seeds_file
+      db_path.join("seeds.rb")
+    end
+
+    def migrations_dir
+      db_path.join("migrate")
+    end
+
     private
 
     def applied_migrations
@@ -123,18 +135,6 @@ module Communard
     def migrator(opts = {})
       migrator = Sequel::Migrator.migrator_class(migrations_dir)
       migrator.new(connection, migrations_dir, opts)
-    end
-
-    def schema_file
-      db_path.join("schema.rb")
-    end
-
-    def seeds_file
-      db_path.join("seeds.rb")
-    end
-
-    def migrations_dir
-      db_path.join("migrate")
     end
 
     Status = Struct.new(:file, :applied, :available) do
