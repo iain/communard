@@ -57,7 +57,8 @@ module Communard
             "RUBY_ENV"     => "test",
             "DATABASE_URL" => nil,
           }
-          Process.spawn(env, $PROGRAM_NAME, "db:drop", "db:create", "db:schema:load")
+          cmd = @_communard_commands.schema_file.exist? ? "db:schema:load" : "db:migrate"
+          Process.spawn(env, $PROGRAM_NAME, "db:drop", "db:create", cmd)
           _pid, status = Process.wait2
           fail "Failed to re-create test database" if status.exitstatus != 0
         end
