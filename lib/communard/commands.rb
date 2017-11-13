@@ -12,7 +12,7 @@ module Communard
                    :adapter,
                    :database_name,
                    :options,
-                   :root_path
+                   :db_path
 
     def initialize(configuration)
       @configuration = configuration
@@ -122,15 +122,15 @@ module Communard
     end
 
     def schema_file
-      root_path.join("db/schema.rb")
+      db_path.join("schema.rb")
     end
 
     def seeds_file
-      root_path.join("db/seeds.rb")
+      db_path.join("seeds.rb")
     end
 
     def migrations_dir
-      root_path.join("db/migrate")
+      db_path.join("migrate")
     end
 
     Status = Struct.new(:file, :applied, :available) do

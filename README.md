@@ -59,8 +59,8 @@ Other configuration options, can be set via a block:
 namespace :db do
   Communard::Rake.add_tasks do |config|
 
-    # Change where the application is located, defaults to Dir.pwd
-    config.root_path = Dir.pwd
+    # Change where the application is located (default: db)
+    config.db_path = File.join(Dir.pwd, "db")
 
     # Automatically generate schema (default: false)
     config.dump_after_migrating = false

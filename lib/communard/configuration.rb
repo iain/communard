@@ -28,7 +28,7 @@ module Communard
         raise ArgumentError, "Sequel::Database.connect takes either a Hash or a String, given: #{conn_string.inspect}"
       end
 
-      self.root_path = Dir.pwd
+      self.db_path = Pathname(Dir.pwd).join("db")
       self.logger = nil
       self.dump_after_migrating = true
       self.same_db = true
@@ -42,10 +42,10 @@ module Communard
 
     attr_accessor :dump_after_migrating
 
-    attr_reader :root_path
+    attr_reader :db_path
 
-    def root_path=(path)
-      @root_path = Pathname(path)
+    def db_path=(path)
+      @db_path = Pathname(path)
     end
 
     def connection
