@@ -30,7 +30,7 @@ module Communard
 
       self.db_path = Pathname(Dir.pwd).join("db")
       self.logger = nil
-      self.dump_after_migrating = true
+      self.dump_after_migrating = false
       self.same_db = true
 
       yield self if block_given?
