@@ -40,7 +40,7 @@ module Communard
     end
 
     def migrate(target: nil)
-      target = Integer(target) if target
+      target = target.to_i if target.to_s.match?(/\A\d+\z/)
       migrator(target: target, current: nil).run
       dump_schema if target.nil? && configuration.dump_after_migrating
     end
